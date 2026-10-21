@@ -1,6 +1,9 @@
 # HEVC Video Extensions 설치 도우미
 
-Windows 10 / 11 어느 PC에서든 **무료 HEVC 비디오 확장**(Microsoft.HEVCVideoExtension)을 그 PC에 맞는 패키지 버전으로 설치해 주는 스크립트입니다.
+[![release](https://img.shields.io/github/v/release/SEUNGJU-PARK-KR/hevc-video-extensions)](https://github.com/SEUNGJU-PARK-KR/hevc-video-extensions/releases/latest)
+[![ci](https://github.com/SEUNGJU-PARK-KR/hevc-video-extensions/actions/workflows/ci.yml/badge.svg)](https://github.com/SEUNGJU-PARK-KR/hevc-video-extensions/actions/workflows/ci.yml)
+
+Windows 10 / 11 어느 PC에서든 **무료 HEVC 비디오 확장**(Microsoft.HEVCVideoExtension)을 그 PC에 맞는 패키지 버전으로 설치해 주는 스크립트입니다. 설치 파일은 [최신 릴리즈](https://github.com/SEUNGJU-PARK-KR/hevc-video-extensions/releases/latest)에서 받으세요.
 
 ```
 powershell -ExecutionPolicy Bypass -File .\Install-HEVC.ps1
