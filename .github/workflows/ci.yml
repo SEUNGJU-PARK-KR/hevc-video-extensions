@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PowerShell syntax check
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Host "::error file=$($_.FullName)::$($errors[0].Message)"
+              $errors | ForEach-Object { Write-Host "  line $($_.Extent.StartLineNumber): $($_.Message)" }
+            } else {
+              Write-Host "OK $($_.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -Confirm:$false
+          $issues = Invoke-ScriptAnalyzer -Path .\Install-HEVC.ps1 -Severity Error
+          if ($issues) {
+            $issues | Format-Table -AutoSize | Out-String | Write-Host
+            exit 1
+          }
+          Write-Host "PSScriptAnalyzer: clean"
+
+      - name: Script help renders
+        shell: pwsh
+        run: |
+          Get-Help .\Install-HEVC.ps1 | Out-String | Write-Host
+
+      - name: Parameter surface
+        shell: pwsh
+        run: |
+          $cmd = Get-Command .\Install-HEVC.ps1
+          $cmd.Parameters.Keys | Sort-Object | Write-Host
+          if (-not $cmd.Parameters.ContainsKey('Diagnose')) { throw 'Diagnose parameter missing' }

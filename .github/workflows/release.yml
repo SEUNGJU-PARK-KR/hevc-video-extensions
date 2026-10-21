@@ -1,0 +1,73 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine tag
+        id: meta
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') { $tag = '${{ inputs.tag }}' }
+          if (-not $tag) { throw 'no tag resolved' }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Build installer archive
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.meta.outputs.tag }}'
+          $stage = Join-Path $env:RUNNER_TEMP 'stage'
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+
+          Copy-Item .\Install-HEVC.ps1, .\Install-HEVC.cmd, .\README.md, .\LICENSE, .\CHANGELOG.md -Destination $stage
+
+          # offline bundles are optional; the workflow attaches them when present in ./packages
+          if (Test-Path .\packages) {
+            Copy-Item .\packages\*.appxbundle -Destination $stage -ErrorAction SilentlyContinue
+          }
+
+          $zip = "HEVC-Video-Extensions-Installer-$tag.zip"
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $zip = '${{ steps.meta.outputs.zip }}'
+          $lines = @()
+          $lines += "$(Get-FileHash $zip -Algorithm SHA256 | Select-Object -ExpandProperty Hash)  $zip"
+          if (Test-Path .\packages) {
+            Get-ChildItem .\packages\*.appxbundle | ForEach-Object {
+              $lines += "$(Get-FileHash $_.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash)  $($_.Name)"
+            }
+          }
+          $lines | Set-Content -Path SHA256SUMS.txt -Encoding ASCII
+          Get-Content SHA256SUMS.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: HEVC Video Extensions Installer ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.meta.outputs.zip }}
+            SHA256SUMS.txt

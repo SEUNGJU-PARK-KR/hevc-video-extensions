@@ -1,0 +1,7 @@
+packages/
+*.appxbundle
+*.appx
+*.msix
+out/
+*.zip
+*.log
